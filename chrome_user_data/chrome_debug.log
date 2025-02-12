@@ -1,0 +1,2 @@
+[3764600:3764600:0212/101805.232014:ERROR:ozone_platform_x11.cc(245)] Missing X server or $DISPLAY
+[3764600:3764600:0212/101805.232168:ERROR:env.cc(257)] The platform failed to initialize.  Exiting.
