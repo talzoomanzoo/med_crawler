@@ -5,11 +5,17 @@ from datetime import datetime
 from tqdm import tqdm
 import pdb 
 # URL of the JAMA Network Clinical Challenges page
-BASE_URL = "https://access.yonsei.ac.kr/link.n2s?url=//jamanetwork.com/collections/44038/clinical-challenge" # 
+BASE_URL = "https://jamanetwork.com/collections/44038/clinical-challenge" # 
 
 # Function to scrape the clinical cases
 
+#PROXY_BASE_URL = "https://openlink.ymlproxy.yonsei.ac.kr/link.n2s?url="
+PROXY_BASE_URL = "https://access.yonsei.ac.kr/link.n2s?url="
+BASE_URL = PROXY_BASE_URL + "https://jamanetwork.com/collections/44038/clinical-challenge"
+
+
 def scrape_clinical_cases():
+
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
@@ -30,7 +36,8 @@ def scrape_clinical_cases():
         
         # Locate each clinical case and extract the link
         case_elements = soup.find_all("li", class_="article")  # General class to capture all JAMA medical field articles
-        
+        import pdb; pdb.set_trace()
+
         if not case_elements:
             print("No more cases found.")
             break
@@ -66,7 +73,8 @@ def extract_answers(case_url):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    response = requests.get(case_url, headers=headers)
+
+    response = requests.get(PROXY_BASE_URL + case_url, headers=headers)
     if response.status_code != 200:
         return None, None  # Return None if there's an error
 

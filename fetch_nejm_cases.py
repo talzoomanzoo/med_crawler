@@ -1,45 +1,61 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.options import Options
+import requests
 from bs4 import BeautifulSoup
 import json
 from datetime import datetime
 from tqdm import tqdm
 import pdb 
-import os
+from selenium import webdriver
+from selenium.webdriver.common.proxy import Proxy, ProxyType
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from chromedriver_py import binary_path
+import time
 
 # URL of the JAMA Network Clinical Challenges page
-BASE_URL = "https://access.yonsei.ac.kr/link.n2s?url=//www.nejm.org/case-challenges" # 
+BASE_URL = "https://jamanetwork.com/collections/44038/clinical-challenge" # 
 
 # Function to scrape the clinical cases
 
+#PROXY_BASE_URL = "https://openlink.ymlproxy.yonsei.ac.kr/link.n2s?url="
+PROXY_BASE_URL = "https://access.yonsei.ac.kr/link.n2s?url="
+BASE_URL = PROXY_BASE_URL + "https://www.nejm.org/case-challenges"
+
+
 def scrape_clinical_cases():
-    # Set up Chrome options
-    chrome_options = Options()
-    chrome_options.add_argument("--incognito")
-    #chrome_options.add_argument("--headless")
-    chrome_options.binary_location = "/usr/bin/google-chrome"
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-    
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+
     cases_year = []
     page_number = 1
     
     while True:
         # Construct the URL for the current page
-        url = f"{BASE_URL}?page={page_number}"
-        driver.get(url)  # Use Selenium to open the URL
-        
-        # Optional: Wait for the page to load completely
-        driver.implicitly_wait(10)  # Wait for up to 10 seconds
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_argument("--disable-popup-blocking")  # Prevent popup blocking
+        chrome_options.add_argument("--disable-blink-features=BlockMetaRefresh")  # Allow meta refresh
+        chrome_options.add_argument(f"--proxy-server={PROXY_BASE_URL}")
+        chrome_options.add_argument("--headless")
 
-        # Get the page source and parse it with BeautifulSoup
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        driver = webdriver.Chrome(service=Service(binary_path), options=chrome_options)
+        driver.get(BASE_URL)
+        
+        url = f"{BASE_URL}?page={page_number}"
+        response = requests.get(url, headers=headers)
+        time.sleep(5)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        if response.status_code != 200:
+            print(f"Failed to retrieve data from page {page_number}: {response.status_code}")
+            break
+
+        # soup = BeautifulSoup(response.url, 'html.parser')
         
         # Locate each clinical case and extract the link
-        case_elements = soup.find_all("li", class_="ng-curated_list-item")  # General class to capture all links of cases
-        
+        case_elements = soup.find_all("li", class_="ng-curated_list-item")  # General class to capture all JAMA medical field articles
+        import pdb; pdb.set_trace()
+
         if not case_elements:
             print("No more cases found.")
             break
@@ -65,8 +81,9 @@ def scrape_clinical_cases():
 
         print(f"Case URLs of page {page_number} fetched...")
         page_number += 1  # Move to the next page
-
-    driver.quit()  # Close the browser
+        driver.quit()
+        # if page_number > 2:
+        #     break # for debugging
     return cases_year
     
 # Function to extract answer_idx and answer from the clinical case page
@@ -74,8 +91,8 @@ def extract_answers(case_url):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    response = requests.get(case_url, headers=headers)
 
+    response = requests.get(PROXY_BASE_URL + case_url, headers=headers)
     if response.status_code != 200:
         return None, None  # Return None if there's an error
 
@@ -83,7 +100,7 @@ def extract_answers(case_url):
     
     # Locate the section for the diagnosis
     diagnosis_section = soup.find("div", class_="h4 cb section-type-section")
-    
+    import pdb; pdb.set_trace()
     # Extract the diagnosis title
     diagnosis_title = diagnosis_section.find("p", class_="para").text.strip() if diagnosis_section else None
     
@@ -118,7 +135,7 @@ if __name__ == "__main__":
         })
     
     # Save the results to a JSON file
-    file_name = 'nejm_links_updated.json'
+    file_name = 'jama_links_updated.json'
     with open(file_name, 'w') as json_file:
         json.dump(compiled_results, json_file, indent=4)
 
